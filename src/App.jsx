@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { Sun, Moon, Upload, FileSpreadsheet, Paperclip } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Upload,
+  FileSpreadsheet,
+  TextSearch,
+  File,
+} from "lucide-react";
 import "./App.css";
 
 function App() {
@@ -52,7 +59,7 @@ function App() {
         </button>
       </header>
       {/* Main */}
-      <main className="w-full max-w-[18.75rem] md:max-w-[45rem] lg:max-w-[75rem] flex flex-col gap-6 bg-gray-200/50 dark:bg-gray-500/50 px-4 md:px-8 py-6 rounded-lg">
+      <main className="w-full max-w-[18.75rem] md:max-w-[45rem] lg:max-w-[75rem] flex flex-col gap-6 bg-gray-200/50 dark:bg-gray-500/50 px-4 md:px-8 py-6 lg:px-12 lg:py-8 rounded-lg">
         {/* 資料上傳 */}
         <section id="data_upload" className="flex flex-col gap-4">
           {/* 標題 */}
@@ -78,10 +85,36 @@ function App() {
                   : "點擊選擇資料檔案 (CSV/JSON)"}
               </span>
             </div>
-            <button className="w-full py-6 px-2 rounded-lg bg-gray-300 dark:bg-gray-600 hover:bg-gray-600 dark:hover:bg-gray-700 hover:text-gray-200 transition-all duration-300 text-sm md:text-lg font-medium">
+            <button className="w-full py-5 px-2 rounded-lg bg-gray-300 dark:bg-gray-600 hover:bg-gray-600 dark:hover:bg-gray-700 hover:text-gray-200 transition-all duration-300 text-sm md:text-lg font-medium">
               開始轉換
             </button>
           </fieldset>
+        </section>
+        {/* 資料預顯示區域 */}
+        <section id="data_preview" className="flex flex-col gap-4">
+          {/* 標題 */}
+          <header className="flex gap-3 items-center">
+            <File className="w-5 h-5 md:w-6 md:h-6" />
+            <h2 className="text-lg md:text-xl lg:text-2xl font-semibold">
+              處理結果
+            </h2>
+          </header>
+          <div className="flex flex-col gap-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-6">
+            <header className="flex gap-3 items-center">
+              <TextSearch className="w-5 h-5 md:w-6 md:h-6" />
+              <h3 className="font-semibold text-gray-700 dark:text-gray-300">
+                JSON 預覽
+              </h3>
+            </header>
+            <div className="bg-gray-700 dark:bg-gray-800 rounded-lg p-4 py-6 max-h-80 overflow-y-auto">
+              <pre className="text-sm text-green-400 dark:text-green-300 whitespace-pre-wrap">
+                處理完成後，這裡會顯示生成的JSON資料
+              </pre>
+            </div>
+          </div>
+          <button className="w-full py-5 px-2 rounded-lg bg-gray-300 dark:bg-gray-600 hover:bg-gray-600 dark:hover:bg-gray-700 hover:text-gray-200 transition-all duration-300 text-sm md:text-lg font-medium">
+            下載 JSON 檔案
+          </button>
         </section>
       </main>
     </div>
