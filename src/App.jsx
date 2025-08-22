@@ -10,11 +10,13 @@ import {
   CheckCircle,
 } from "lucide-react";
 import "./App.css";
+import { rules } from "eslint-plugin-react-refresh";
 
 function App() {
   const [theme, setTheme] = useState("light");
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isRippleActive, setRippleActive] = useState(false);
+  const [processedData, setProcessedData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState({ message: "", isError: false });
   const filleInputRef = useRef(null);
@@ -100,6 +102,116 @@ function App() {
     });
   };
 
+  // 格式轉換
+  const convertDataTiProductData = (fileData) => {
+    return fileData.map((row) => {
+      let variants_input = [];
+      try {
+        if (row.variants_input && typeof row.variants_input === "string") {
+          variants_input = JSON.parse(row.variants_input);
+        } else if (
+          row.variants_input &&
+          typeof row.variants_input === "object"
+        ) {
+          variants_input = row.variants_input;
+        } else {
+          variants_input = [
+            {
+              color_name: row.color_name || "Black",
+              color_hex: row.color_hex || "000000",
+              sizes: JSON.parse(row.sizes || '{"S": 10, "M": 10, "L": 10}'),
+            },
+          ];
+        }
+      } catch (error) {
+        variants_input = [
+          {
+            color_name: "Black",
+            color_hex: "000000",
+            sizes: { S: 10, M: 10, L: 10 },
+          },
+        ];
+      }
+
+      return {
+        category_code: row.category_code || "T01",
+        style_code: row.style_code || "1234",
+        product_name: row.product_name || "Unknown Product",
+        category_main: row.category_main || "Top",
+        category_sub: row.category_sub || "T-Shirt",
+        price: parseFloat(row.price) || 0,
+        isNew: row.isNew === true || row.isNew === "true",
+        onSale: row.onSale === true || row.onSale === "true",
+        discountRate: parseFloat(row.discountRate) || 1.0,
+        description: row.description || "",
+        materials: row.materials
+          ? Array.isArray(row.materials)
+            ? row.materials
+            : [row.materials]
+          : [],
+        variants_input: variants_input,
+      };
+    });
+  };
+
+  // SKU 生成
+  const generateSKU = (categoryCode, styleCode, colorCode, size) => {
+    return `${categoryCode}-${styleCode}-${colorCode}-${size}`;
+  };
+
+  // 處理產品資料
+  const processProductData = (productData) => {
+    return productData.map((data) => {
+      const product_id = `${data.category_code}-${data.style_code}`;
+      const newPrice = data.onSale
+        ? Math.round(data.price * data.discountRate)
+        : data.price;
+
+      const variants = data.variants_input.map((variant) => {
+        const color_name = variant.color_name;
+        const color_code =
+          COLOR_CODE_MAP[color_name] ||
+          color_name.substring(0, 3).toUpperCase();
+
+        const skus = [];
+        Object.entries(variant.sizes).forEach(([size, stock]) => {
+          skus.push({
+            sku: generateSKU(
+              data.category_code,
+              data.style_code,
+              color_code,
+              size
+            ),
+            size: size,
+            stock: stock,
+          });
+        });
+
+        return {
+          color_name: color_name,
+          color_code: `#${variant.color_hex}`,
+          sizes: variant.sizes,
+          skus: skus,
+        };
+      });
+
+      return {
+        product_id: product_id,
+        product_name: data.product_name,
+        category_main: data.category_main,
+        category_sub: data.category_sub,
+        price: data.price,
+        isNew: data.isNew,
+        onSale: data.onSale,
+        discountRate: data.discountRate,
+        newPrice: newPrice,
+        description: data.description,
+        materials: data.materials,
+        variants: variants,
+      };
+    });
+  };
+
   // 檔案上傳
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -117,7 +229,15 @@ function App() {
     try {
       setIsProcessing(true);
 
-      const excelDara = await readFile(uploadedFile);
+      const fileData = await readFile(uploadedFile);
+      const productData = convertDataTiProductData(fileData);
+      const result = processProductData(productData);
+
+      setProcessedData(result);
+      setStatus({
+        message: `成功轉換 ${result.length} 個商品`,
+        isError: false,
+      });
     } catch (error) {
       console.error("處理錯誤:", error);
       setStatus({
@@ -126,6 +246,8 @@ function App() {
         }`,
         isError: true,
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -244,9 +366,9 @@ function App() {
                 }`}
               >
                 {status.isError ? (
-                  <XCircle className="w-8 h-8 md:w-10 md:h-10" />
+                  <XCircle className="w-6 h-6 md:w-8 md:h-8" />
                 ) : (
-                  <CheckCircle className="w-8 h-8 md:w-10 md:h-10" />
+                  <CheckCircle className="w-6 h-6 md:w-8 md:h-8" />
                 )}
                 <span>{status.message}</span>
               </div>
@@ -272,7 +394,9 @@ function App() {
             </header>
             <div className="bg-gray-600 dark:bg-gray-800 rounded-lg p-4 py-6 max-h-80 overflow-y-auto">
               <pre className="text-sm text-green-400 dark:text-green-300 whitespace-pre-wrap">
-                處理完成後，這裡會顯示生成的JSON資料
+                {processedData
+                  ? JSON.stringify(processedData, null, 2)
+                  : "處理完成後，這裡會顯示生成的JSON資料"}
               </pre>
             </div>
           </div>
