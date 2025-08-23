@@ -10,7 +10,6 @@ import {
   CheckCircle,
 } from "lucide-react";
 import "./App.css";
-import { rules } from "eslint-plugin-react-refresh";
 
 function App() {
   const [theme, setTheme] = useState("light");
@@ -228,6 +227,7 @@ function App() {
     }
     try {
       setIsProcessing(true);
+      setStatus({ message: "", isError: false });
 
       const fileData = await readFile(uploadedFile);
       const productData = convertDataTiProductData(fileData);
@@ -249,6 +249,27 @@ function App() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // 檔案下載
+  const downloadJSON = () => {
+    if (!processData) {
+      setStatus({ message: "沒有可下載的資料", isError: true });
+    }
+
+    const dataStr = JSON.stringify(processData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `products_${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+    setStatus({ message: "檔案下載完成", isError: false });
   };
 
   return (
@@ -400,7 +421,15 @@ function App() {
               </pre>
             </div>
           </div>
-          <button className="w-full py-5 px-2 rounded-md bg-gray-300 hover:text-gray-200 hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-gray-800/80  transition-all duration-300 hover:shadow-xl text-sm md:text-lg font-medium">
+          <button
+            onClick={downloadJSON}
+            disabled={!processData}
+            className={`w-full py-5 px-2 rounded-md ${
+              processData
+                ? " bg-gray-200 hover:text-gray-200 hover:shadow-xl hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-gray-800/80"
+                : `opacity-50 bg-gray-600 dark:bg-gray-700`
+            } transition-all duration-300 text-sm md:text-lg font-medium`}
+          >
             下載 JSON 檔案
           </button>
         </section>
