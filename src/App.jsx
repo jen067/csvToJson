@@ -13,12 +13,12 @@ import "./App.css";
 
 function App() {
   const [theme, setTheme] = useState("light");
-  const [uploadedFile, setUploadedFile] = useState(null);
   const [isRippleActive, setRippleActive] = useState(false);
+  const filleInputRef = useRef(null);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [status, setStatus] = useState({ message: "", isError: false });
   const [processedData, setProcessedData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [status, setStatus] = useState({ message: "", isError: false });
-  const filleInputRef = useRef(null);
 
   // 顏色縮寫
   const COLOR_CODE_MAP = {
@@ -68,6 +68,12 @@ function App() {
           if (file.name.toLowerCase().endsWith(".csv")) {
             const text = e.target.result;
             const line = text.split("\n");
+
+            if (line.length < 2) {
+              reject(new Error("CSV檔案必須包含標題行和至少一行資料"));
+              return;
+            }
+
             const header = line[0]
               .split(",")
               .map((h) => h.trim().replace(/"/g, ""));
@@ -86,6 +92,8 @@ function App() {
               }
             }
             resolve(data);
+          } else {
+            reject(new Error("不支援檔案格式"));
           }
         } catch (error) {
           reject(error);
@@ -211,15 +219,48 @@ function App() {
     });
   };
 
+  // 檔案格式驗證
+  const validationFile = (file) => {
+    const fileName = file.name.toLowerCase();
+    const fileExtension = fileName.split(".").pop();
+
+    if (fileExtension !== "csv") {
+      return {
+        isValid: false,
+        message: `不支援的檔案格式: .${fileExtension}。請上傳CSV檔案。`,
+      };
+    }
+    return {
+      isValid: true,
+      message: "",
+    };
+  };
+
+  // csv 格式驗證
+
   // 檔案上傳
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // 檔案格式驗證
+      const fileValidation = validationFile(file);
+
+      if (!fileValidation) {
+        setStatus({
+          message: fileValidation.message,
+          isError: true,
+        });
+        setUploadedFile(null);
+        e.target.value = "";
+        return;
+      }
+
       setUploadedFile(file);
       setStatus({ message: "" });
     }
   };
 
+  // 處理資料
   const processData = async () => {
     if (!uploadedFile) {
       setStatus({ message: "請先上傳資料檔案", isError: true });
@@ -230,6 +271,17 @@ function App() {
       setStatus({ message: "", isError: false });
 
       const fileData = await readFile(uploadedFile);
+
+      // 格式驗證
+      const csvValidation = ValidationCSV(fileData);
+      if (!csvValidation) {
+        setStatus({
+          message: csvValidation.message,
+          isError: true,
+        });
+        return;
+      }
+
       const productData = convertDataTiProductData(fileData);
       const result = processProductData(productData);
 
@@ -326,7 +378,7 @@ function App() {
           {/* 資料上傳區域 */}
           <fieldset className="flex flex-col gap-3">
             <label className="text-sm md:text-base lg:text-lg font-medium text-gray-700 dark:text-gray-200">
-              資料檔案 (CSV/JSON/TXT)
+              資料檔案 (CSV)
             </label>
             <input
               type="file"
@@ -359,7 +411,7 @@ function App() {
               >
                 {uploadedFile
                   ? `${uploadedFile.name}`
-                  : "點擊選擇資料檔案 (CSV/JSON)"}
+                  : "點擊選擇資料檔案 (CSV)"}
               </span>
             </div>
             <button
