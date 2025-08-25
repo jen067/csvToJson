@@ -104,44 +104,23 @@ function App() {
   const convertDataTiProductData = (fileData) => {
     return fileData.map((row) => {
       let variants_input = [];
-      try {
-        if (row.variants_input && typeof row.variants_input === "string") {
-          variants_input = JSON.parse(row.variants_input);
-        } else if (
-          row.variants_input &&
-          typeof row.variants_input === "object"
-        ) {
-          variants_input = row.variants_input;
-        } else {
-          variants_input = [
-            {
-              color_name: row.color_name || "Black",
-              color_hex: row.color_hex || "000000",
-              sizes: JSON.parse(row.sizes || '{"S": 10, "M": 10, "L": 10}'),
-            },
-          ];
-        }
-      } catch (error) {
-        variants_input = [
-          {
-            color_name: "Black",
-            color_hex: "000000",
-            sizes: { S: 10, M: 10, L: 10 },
-          },
-        ];
+      if (row.variants_input && typeof row.variants_input === "string") {
+        variants_input = JSON.parse(row.variants_input);
+      } else if (row.variants_input && typeof row.variants_input === "object") {
+        variants_input = row.variants_input;
       }
 
       return {
-        category_code: row.category_code || "T01",
-        style_code: row.style_code || "1234",
-        product_name: row.product_name || "Unknown Product",
-        category_main: row.category_main || "Top",
-        category_sub: row.category_sub || "T-Shirt",
-        price: parseFloat(row.price) || 0,
-        isNew: row.isNew === true || row.isNew === "true",
-        onSale: row.onSale === true || row.onSale === "true",
-        discountRate: parseFloat(row.discountRate) || 1.0,
-        description: row.description || "",
+        category_code: row.category_code,
+        style_code: row.style_code,
+        product_name: row.product_name,
+        category_main: row.category_main,
+        category_sub: row.category_sub,
+        price: parseFloat(row.price),
+        isNew: row.isNew === true,
+        onSale: row.onSale === true,
+        discountRate: parseFloat(row.discountRate),
+        description: row.description,
         materials: row.materials
           ? Array.isArray(row.materials)
             ? row.materials
