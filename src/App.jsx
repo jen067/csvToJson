@@ -35,9 +35,27 @@ function App() {
     Brown: "BRN",
   };
 
+  // 資料保存
+  useEffect(() => {
+    const savedProcessedData = sessionStorage.getItem("processedData");
+    const savedUploadedFileName = sessionStorage.getItem("uploadedFile");
+
+    if (savedProcessedData) {
+      try {
+        setProcessedData(JSON.parse(savedProcessedData));
+      } catch (error) {
+        console.error("載入保存資料時發生錯誤:", error);
+      }
+    }
+
+    if (savedUploadedFileName) {
+      setUploadedFile({ name: savedUploadedFileName });
+    }
+  }, []);
+
   // 主題切換
   useEffect(() => {
-    const saveTheme = localStorage.getItem("theme");
+    const saveTheme = sessionStorage.getItem("theme");
     const syetemPreferDark = window.matchMedia(
       "(prefer-color-scheme:dark)"
     ).matches;
@@ -52,7 +70,7 @@ function App() {
   useEffect(() => {
     const html = document.documentElement;
     html.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
+    sessionStorage.setItem("theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {
@@ -237,6 +255,87 @@ function App() {
   };
 
   // csv 格式驗證
+  const REQUIRED_CSV_FIELDS = [
+    "category_code",
+    "style_code",
+    "product_name",
+    "category_main",
+    "category_sub",
+    "price",
+    "isNew",
+    "onSale",
+    "discountRate",
+    "description",
+    "materials",
+    "variants_input",
+  ];
+
+  const validationCSV = (csvData) => {
+    if (!csvData || csvData.length === 0) {
+      return {
+        isValid: false,
+        message: "CSV檔案為空或格式不正確",
+      };
+    }
+
+    const header = Object.keys(csvData[0] || {});
+    const missingFields = REQUIRED_CSV_FIELDS.filter(
+      (filed) => !header.includes(filed)
+    );
+
+    if (missingFields.length > 0) {
+      return {
+        isValid: false,
+        message: `CSV缺少必要欄位: ${missingFields.join(", ")}`,
+      };
+    }
+
+    const validRows = [];
+    const errors = [];
+
+    csvData.forEach((row) => {
+      let rowValid = true;
+
+      // 價錢驗證
+      if (isNaN(parseFloat(row.price))) {
+        rowValid = false;
+        errors.push(`商品 : ${row.product_id} 價格必須是數字`);
+      }
+
+      // 新品、特價驗證
+      ["isNew", "onSale"].forEach((field) => {
+        if (!["True", "False"].includes(String(row[field]))) {
+          rowValid = false;
+          errors.push(`商品 : ${row.product_id} ${field}必須是True 或是 False`);
+        }
+      });
+
+      // 驗證 variants_input 格式
+      try {
+        const variants = JSON.parse(row.variants_input);
+        if (!Array.isArray(variants)) {
+          rowValid = false;
+          errors.push(
+            `商品 : ${row.product_id} variants_input 必須是 JSON 陣列`
+          );
+        }
+      } catch (error) {
+        rowValid = false;
+        errors.push(`商品 : ${row.product_id} variants_input 不是合法的 JSON`);
+      }
+
+      if (rowValid) validRows.push(row);
+    });
+
+    if (validRows.length === 0) {
+      return {
+        isValid: false,
+        message: errors.join("; ") || "CSV檔案沒有包含有效的產品資料",
+      };
+    }
+
+    return { isValid: true, message: "" };
+  };
 
   // 檔案上傳
   const handleFileUpload = (e) => {
@@ -273,7 +372,7 @@ function App() {
       const fileData = await readFile(uploadedFile);
 
       // 格式驗證
-      const csvValidation = ValidationCSV(fileData);
+      const csvValidation = validationCSV(fileData);
       if (!csvValidation) {
         setStatus({
           message: csvValidation.message,
@@ -286,6 +385,10 @@ function App() {
       const result = processProductData(productData);
 
       setProcessedData(result);
+
+      sessionStorage.setItem("processedData", JSON.stringify(result));
+      sessionStorage.setItem("uploadedFileName", uploadedFile.name);
+
       setStatus({
         message: `成功轉換 ${result.length} 個商品`,
         isError: false,
