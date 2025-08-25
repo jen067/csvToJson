@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, CSSProperties } from "react";
 import {
   Sun,
   Moon,
@@ -9,6 +9,8 @@ import {
   XCircle,
   CheckCircle,
 } from "lucide-react";
+
+import Papa from "papaparse";
 import "./App.css";
 
 function App() {
@@ -38,7 +40,7 @@ function App() {
   // 資料保存
   useEffect(() => {
     const savedProcessedData = sessionStorage.getItem("processedData");
-    const savedUploadedFileName = sessionStorage.getItem("uploadedFile");
+    const savedUploadedFileName = sessionStorage.getItem("uploadedFileName");
 
     if (savedProcessedData) {
       try {
@@ -80,50 +82,21 @@ function App() {
   // 讀取檔案
   const readFile = (file) => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        try {
-          if (file.name.toLowerCase().endsWith(".csv")) {
-            const text = e.target.result;
-            const line = text.split("\n");
-
-            if (line.length < 2) {
-              reject(new Error("CSV檔案必須包含標題行和至少一行資料"));
-              return;
-            }
-
-            const header = line[0]
-              .split(",")
-              .map((h) => h.trim().replace(/"/g, ""));
-            const data = [];
-
-            for (let i = 1; i < line.length; i++) {
-              if (line[i].trim()) {
-                const value = line[i]
-                  .split(",")
-                  .map((v) => v.trim().replace(/"/g, ""));
-                const row = {};
-                header.forEach((header, index) => {
-                  row[header] = value[index] || "";
-                });
-                data.push(row);
-              }
-            }
-            resolve(data);
-          } else {
-            reject(new Error("不支援檔案格式"));
-          }
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = reject;
-
-      if (file.name.toLowerCase().endsWith(".csv")) {
-        reader.readAsText(file, "UTF-8");
-      } else {
-        reader.readAsArrayBuffer(file);
+      if (!file.name.toLowerCase().endsWith(".csv")) {
+        reject(new Error("不支援的檔案格式"));
+        return;
       }
+
+      Papa.parse(file, {
+        header: true, // 會自動把第一行當 header
+        skipEmptyLines: true, // 跳過空行
+        complete: function (results) {
+          resolve(results.data); // 這裡直接拿到物件陣列
+        },
+        error: function (err) {
+          reject(new Error("讀取檔案時發生錯誤: " + err.message));
+        },
+      });
     });
   };
 
@@ -271,6 +244,8 @@ function App() {
   ];
 
   const validationCSV = (csvData) => {
+    console.log(csvData);
+
     if (!csvData || csvData.length === 0) {
       return {
         isValid: false,
@@ -299,30 +274,20 @@ function App() {
       // 價錢驗證
       if (isNaN(parseFloat(row.price))) {
         rowValid = false;
-        errors.push(`商品 : ${row.product_id} 價格必須是數字`);
+        errors.push(
+          `商品 : ${row.category_code}-${row.style_code} 價格必須是數字`
+        );
       }
 
       // 新品、特價驗證
       ["isNew", "onSale"].forEach((field) => {
-        if (!["True", "False"].includes(String(row[field]))) {
-          rowValid = false;
-          errors.push(`商品 : ${row.product_id} ${field}必須是True 或是 False`);
-        }
-      });
-
-      // 驗證 variants_input 格式
-      try {
-        const variants = JSON.parse(row.variants_input);
-        if (!Array.isArray(variants)) {
+        if (!["true", "false"].includes(String(row[field]))) {
           rowValid = false;
           errors.push(
-            `商品 : ${row.product_id} variants_input 必須是 JSON 陣列`
+            `商品 : ${row.category_code}-${row.style_code} ${field}true 或是 false`
           );
         }
-      } catch (error) {
-        rowValid = false;
-        errors.push(`商品 : ${row.product_id} variants_input 不是合法的 JSON`);
-      }
+      });
 
       if (rowValid) validRows.push(row);
     });
@@ -368,12 +333,13 @@ function App() {
     try {
       setIsProcessing(true);
       setStatus({ message: "", isError: false });
-
+      console.log(uploadedFile);
       const fileData = await readFile(uploadedFile);
-
+      console.log(fileData);
       // 格式驗證
       const csvValidation = validationCSV(fileData);
-      if (!csvValidation) {
+      console.log(csvValidation);
+      if (!csvValidation.isValid) {
         setStatus({
           message: csvValidation.message,
           isError: true,
